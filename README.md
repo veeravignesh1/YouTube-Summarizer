@@ -16,6 +16,10 @@ Our project uses Advanced NLP techniques to extract the summary of the video. It
 - Develop a GUI to link the process
 - Location to save the summary in
 
+## Working
+[GUI](https://github.com/veeravignesh1/YouTube-Summarizer/blob/master/gui.gif)
+[Result](https://github.com/veeravignesh1/YouTube-Summarizer/blob/master/result.gif)
+
 ## Future Work
 
 - Extend the summarization to Coursera and other education websites
