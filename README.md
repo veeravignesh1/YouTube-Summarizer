@@ -17,8 +17,8 @@ Our project uses Advanced NLP techniques to extract the summary of the video. It
 - Location to save the summary in
 
 ## Working
-[GUI](gui.gif)
-[Result](result.gif)
+![GUI](gui.gif)
+![Result](result.gif)
 
 ## Future Work
 
