@@ -17,8 +17,8 @@ Our project uses Advanced NLP techniques to extract the summary of the video. It
 - Location to save the summary in
 
 ## Working
-[GUI](https://github.com/veeravignesh1/YouTube-Summarizer/blob/master/gui.gif)
-[Result](https://github.com/veeravignesh1/YouTube-Summarizer/blob/master/result.gif)
+[GUI](gui.gif)
+[Result](result.gif)
 
 ## Future Work
 
