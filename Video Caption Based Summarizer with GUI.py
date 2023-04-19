@@ -210,12 +210,6 @@ get_folder.place(width=300, height=30, x=150, y=290)
 # Button --> Browse
 folder = StringVar(root)
 
-"""import os
-print(os.getcwd())
-folder = os.getcwd()
-print(folder)"""
-
-
 def browse():
     global folder
     folder = filedialog.askdirectory(initialdir='/')
