@@ -16,35 +16,48 @@ from tkinter import *
 from tkinter import filedialog
 import tkinter.font as tkFont
 import os
-import youtube_dl
+import yt_dlp
+import requests
 import pandas as pd
 import numpy as np
 import spacy
+import subprocess
+import platform
+
 nlp = spacy.load("en_core_web_sm")
+
 
 ####################################################################################
 # Function Block
 
 def get_caption(url):
     global video_title
-    # Using Youtube-dl inside python
-    ydl_opts = {
-        'skip_download': True,        # Skipping the download of actual file
-        'writesubtitles': True,       # Uploaded Subtitles
-        "writeautomaticsub": True,    # Auto generated Subtitles
-        "subtitleslangs": ['en'],     # Language Needed "en"-->English
-        'outtmpl': 'test.%(ext)s',    # Saving downloaded file as 'test.en.vtt'
-        'nooverwrites': False,        # Overwrite if the file exists
-        'quiet': True                # Printing progress
-    }
 
-    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-        try:
-            ydl.download([url])
-            info_dict = ydl.extract_info(url, download=False)
-            video_title = info_dict.get('title', None)
-        except:
-            print("Try with a YouTube URL")
+    # Create the YTDL object
+    ydl = yt_dlp.YoutubeDL({'format': 'best'})
+
+    # Download the video with subtitles
+    info_dict = ydl.extract_info(url, download=False)
+
+    video_title = info_dict['title']
+
+    # Find the subtitle URL for the English subtitles
+    subtitles = info_dict.get('subtitles')
+    en_subtitles_url = None
+    if subtitles:
+        for lang in subtitles:
+            if lang == 'en':
+                en_subtitles_url = subtitles[lang][-1]['url']
+                break
+
+    # Download the English subtitles
+    if en_subtitles_url:
+        response = requests.get(en_subtitles_url)
+
+        with open('test.en.vtt', 'wb') as f:
+            f.write(response.content)
+    else:
+        print('English subtitles not found')
     corpus = []
     for caption in webvtt.read('test.en.vtt'):
         corpus.append(caption.text)
@@ -56,48 +69,49 @@ def get_caption(url):
 
 def summarizer(text, option, fraction):
     # "Tf-IDF-Based", "Frequency-Based", "Gensim-Based"
-    
-    frac=fraction
+
+    frac = fraction
     if option == "TfIdf-Based":
         return tfidf_based(text, frac)
     if option == "Frequency-Based":
         return freq_based(text, frac)
     if option == "Gensim-Based":
-        doc=nlp(text)
-        text="\n".join([sent.text for sent in doc.sents])
+        doc = nlp(text)
+        text = "\n".join([sent.text for sent in doc.sents])
         return gensim_based(text=text, ratio=frac)
 
-def tfidf_based(msg,fraction=0.3):
+
+def tfidf_based(msg, fraction=0.3):
     # Creating Pipeline
-    doc=nlp(msg)
-    
-    #Sent_tokenize
-    sents =[sent.text for sent in doc.sents]
-    
-    #Number of Sentence User wants
-    num_sent=int(np.ceil(len(sents)*fraction))
-    
-    #Creating tf-idf removing the stop words matching token pattern of only text
-    tfidf=TfidfVectorizer(stop_words='english',token_pattern='(?ui)\\b\\w*[a-z]+\\w*\\b')
-    X=tfidf.fit_transform(sents)
-    
-    #Creating a df with data and tf-idf value
-    df=pd.DataFrame(data=X.todense(),columns=tfidf.get_feature_names())
-    indexlist=list(df.sum(axis=1).sort_values(ascending=False).index)
-#     indexlist=list((df.sum(axis=1)/df[df>0].count(axis=1)).sort_values(ascending=False).index)
-    
+    doc = nlp(msg)
+
+    # Sent_tokenize
+    sents = [sent.text for sent in doc.sents]
+
+    # Number of Sentence User wants
+    num_sent = int(np.ceil(len(sents) * fraction))
+
+    # Creating tf-idf removing the stop words matching token pattern of only text
+    tfidf = TfidfVectorizer(stop_words='english', token_pattern='(?ui)\\b\\w*[a-z]+\\w*\\b')
+    X = tfidf.fit_transform(sents)
+
+    # Creating a df with data and tf-idf value
+    df = pd.DataFrame(data=X.todense(), columns=tfidf.get_feature_names())
+    indexlist = list(df.sum(axis=1).sort_values(ascending=False).index)
+    #     indexlist=list((df.sum(axis=1)/df[df>0].count(axis=1)).sort_values(ascending=False).index)
+
     # Subsetting only user needed sentence
     needed = indexlist[:num_sent]
-    
-    #Sorting the document in order
+
+    # Sorting the document in order
     needed.sort()
-    
-    #Appending summary to a list--> convert to string --> return to user
-    summary=[]
+
+    # Appending summary to a list--> convert to string --> return to user
+    summary = []
     for i in needed:
         summary.append(sents[i])
-    summary="".join(summary)
-    summary = summary.replace("\n",'')
+    summary = "".join(summary)
+    summary = summary.replace("\n", '')
     return summary
 
 
@@ -107,7 +121,7 @@ def freq_based(text, fraction):
     # Break to sentences
     sentence = [sent for sent in doc.sents]
     # Number of sentence user wants
-    numsentence = int(np.ceil(fraction*len(sentence)))
+    numsentence = int(np.ceil(fraction * len(sentence)))
 
     # Tokenizing and filtering key words
     words = [word.text.lower()
@@ -115,7 +129,7 @@ def freq_based(text, fraction):
     # Converting to df for calculating weighted frequency
     df = pd.DataFrame.from_dict(
         data=dict(Counter(words)), orient="index", columns=["freq"])
-    df["wfreq"] = np.round(df.freq/df.freq.max(), 3)
+    df["wfreq"] = np.round(df.freq / df.freq.max(), 3)
     df = df.drop('freq', axis=1)
 
     # Convert weighted frequency back to dict
@@ -196,6 +210,11 @@ get_folder.place(width=300, height=30, x=150, y=290)
 # Button --> Browse
 folder = StringVar(root)
 
+"""import os
+print(os.getcwd())
+folder = os.getcwd()
+print(folder)"""
+
 
 def browse():
     global folder
@@ -217,6 +236,8 @@ def on_clear():
 
 clear = Button(root, text="Clear", command=on_clear)
 clear.place(width=50, x=240, y=350)
+
+
 # Function on Submit
 
 
@@ -228,20 +249,30 @@ def on_submit():
     current = os.getcwd()
     folder = get_folder.get()
     os.chdir(folder)
-    print(url,choice,frac,folder)
+    print(url, choice, frac, folder)
     corpus = get_caption(url)
-    with open("corpus.txt",'w+') as c:
-        print(corpus,file=c)
+    with open("corpus.txt", 'w+') as c:
+        print(corpus, file=c)
     # Calling the main summarizer function
     summary = summarizer(corpus, choice, frac)
-    filename = video_title+" "+choice+'.txt'
+    filename = video_title + " " + choice + '.txt'
     filename = re.sub(r'[\/:*?<>|]', ' ', filename)
     with open(filename, 'w+') as f:
         print(summary, file=f)
-    os.remove(os.getcwd()+'\\test.en.vtt')
+    os.remove(os.getcwd() + '/test.en.vtt')
     os.chdir(current)
-    openpath = Button(root, text="Open Folder",
-                      command=lambda: os.startfile(get_folder.get()))
+    
+    # platform independent file manager popup
+    file_path = get_folder.get()
+    if platform.system() == 'Windows':
+        openpath = Button(root, text="Open Folder",
+                          command=lambda: subprocess.Popen(['start', file_path], shell=True))
+    elif platform.system() == 'Darwin':  # macOS
+        openpath = Button(root, text="Open Folder",
+                          command=lambda: subprocess.Popen(['open', file_path]))
+    else:  # Linux, Unix, etc.
+        openpath = Button(root, text="Open Folder",
+                          command=lambda: subprocess.Popen(['xdg-open', file_path]))
     openpath.place(x=360, y=350)
 
 
